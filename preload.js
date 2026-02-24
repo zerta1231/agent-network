@@ -1,3 +1,4 @@
+const API_PORT = 18794;
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {

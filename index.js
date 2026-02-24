@@ -129,7 +129,7 @@ class AgentNetworkSkill {
           const connections = await this.core.getConnections();
           sendSuccess({
             nodeId: this.p2p.peerId,
-            version: '1.0.5',
+            version: '1.1.2',
             balance,
             connections: connections.length,
             peers: this.p2p.getPeers().length
