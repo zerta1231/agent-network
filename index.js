@@ -48,7 +48,7 @@ class AgentNetworkSkill {
       this.startHttpServer();
       
       this.running = true;
-      console.log('\n🎉 Agent Network is running!');
+      console.log('\n🎉 Agent Network v1.0.2 is running!');
       console.log(`   Node ID: ${this.p2p.peerId}`);
       console.log(`   P2P Port: ${this.config.port}`);
       console.log(`   HTTP API: ${this.config.port + 1}`);
@@ -76,28 +76,65 @@ class AgentNetworkSkill {
       };
       
       try {
+        // Status
         if (req.url === '/api/status' && req.method === 'GET') {
           const balance = await this.skills.getBalance(this.p2p.peerId);
           const connections = await this.core.getConnections();
           sendSuccess({
             nodeId: this.p2p.peerId,
+            version: '1.0.2',
             balance,
             connections: connections.length,
             peers: this.p2p.getPeers().length
           });
-        } else if (req.url === '/api/connections' && req.method === 'GET') {
+        }
+        // Connections list
+        else if (req.url === '/api/connections' && req.method === 'GET') {
           const connections = await this.core.getConnections();
           sendSuccess(connections);
-        } else if (req.url === '/api/skills' && req.method === 'GET') {
+        }
+        // All skills marketplace
+        else if (req.url === '/api/skills' && req.method === 'GET') {
           const skills = await this.skills.listSkills({ limit: 20 });
           sendSuccess(skills);
-        } else if (req.url === '/api/balance' && req.method === 'GET') {
+        }
+        // My published skills
+        else if (req.url === '/api/skills/mine' && req.method === 'GET') {
+          const skills = await this.skills.getMySkills();
+          sendSuccess(skills);
+        }
+        // Download skill
+        else if (req.url === '/api/skills/download' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', async () => {
+            const { skillId } = JSON.parse(body);
+            const skill = await this.skills.download(skillId);
+            sendSuccess(skill);
+          });
+        }
+        // Rate skill
+        else if (req.url === '/api/skills/rate' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', async () => {
+            const { skillId, rating, review } = JSON.parse(body);
+            await this.skills.rate(skillId, rating, review);
+            sendSuccess({ success: true });
+          });
+        }
+        // Balance
+        else if (req.url === '/api/balance' && req.method === 'GET') {
           const balance = await this.skills.getBalance(this.p2p.peerId);
           sendSuccess({ points: balance });
-        } else if (req.url === '/api/leaderboard' && req.method === 'GET') {
+        }
+        // Leaderboard
+        else if (req.url === '/api/leaderboard' && req.method === 'GET') {
           const leaderboard = await this.skills.getLeaderboard('skills', 10);
           sendSuccess(leaderboard);
-        } else if (req.url === '/api/send' && req.method === 'POST') {
+        }
+        // Send message
+        else if (req.url === '/api/send' && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => body += chunk);
           req.on('end', async () => {
@@ -105,7 +142,9 @@ class AgentNetworkSkill {
             await this.core.sendMessage(to, message);
             sendSuccess({ success: true });
           });
-        } else if (req.url === '/api/appreciate' && req.method === 'POST') {
+        }
+        // Appreciate
+        else if (req.url === '/api/appreciate' && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => body += chunk);
           req.on('end', async () => {
@@ -113,15 +152,30 @@ class AgentNetworkSkill {
             await this.core.sendAppreciation(peerId);
             sendSuccess({ success: true });
           });
-        } else if (req.url.startsWith('/api/publish') && req.method === 'POST') {
+        }
+        // Publish skill
+        else if (req.url === '/api/publish' && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => body += chunk);
           req.on('end', async () => {
             const { skillPath, price, metadata } = JSON.parse(body);
             const skillId = await this.skills.publish(skillPath, price, metadata);
+            // Share with P2P network
+            await this.core.shareSkill(skillId, metadata.name || skillPath, metadata.description, price);
             sendSuccess({ success: true, skillId });
           });
-        } else {
+        }
+        // Share skill (broadcast to P2P)
+        else if (req.url === '/api/share' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', async () => {
+            const { skillId, skillName, description, price } = JSON.parse(body);
+            await this.core.shareSkill(skillId, skillName, description, price);
+            sendSuccess({ success: true });
+          });
+        }
+        else {
           res.writeHead(404);
           res.end(JSON.stringify({ error: 'Not found' }));
         }
