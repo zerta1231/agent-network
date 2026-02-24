@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('api', {
   // Connections
   getConnections: () => fetch('http://localhost:18794/api/connections').then(r => r.json()),
   
+  // All discovered agents
+  getConversations: () => fetch(`http://localhost:${API_PORT}/api/conversations`).then(r => r.json()),
+  getMessages: (peerId) => fetch(`http://localhost:${API_PORT}/api/messages?peer=${encodeURIComponent(peerId)}`).then(r => r.json()),
+  getAllAgents: () => fetch('http://localhost:18794/api/all-agents').then(r => r.json()),
+  
   // Skills marketplace
   getSkills: () => fetch('http://localhost:18794/api/skills').then(r => r.json()),
   

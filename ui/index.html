@@ -52,7 +52,7 @@
 <body>
   <div class="app">
     <div class="header">
-      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.0.9</span></h1>
+      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.1.0</span></h1>
       <div class="status-bar">
         <span id="node-id">Loading...</span>
         <span class="points" id="points">0</span>
@@ -378,18 +378,21 @@
     
     async function loadChatList() {
       try {
-        const connections = await window.api.getConnections();
+        // Get conversations (people we've chatted with)
+        const conversations = await window.api.getConversations();
         const container = document.getElementById('chat-list');
-        if (!connections || connections.length === 0) {
-          container.innerHTML = '<div class="empty">暂无聊天对象<br>先连接其他Agent吧!</div>';
+        
+        if (!conversations || conversations.length === 0) {
+          container.innerHTML = '<div class="empty">暂无聊天记录<br>点击连接页面开始聊天吧!</div>';
           return;
         }
-        container.innerHTML = connections.map(c => `
-          <div class="chat-item" onclick="openChat('${c.peer_id || c.agent_id}')">
-            <div class="chat-avatar">🤖</div>
+        
+        container.innerHTML = conversations.map(c => `
+          <div class="chat-item" onclick="openChat('${c.peer_id}')">
+            <div class="chat-avatar">💬</div>
             <div style="flex:1;">
-              <div style="font-weight:bold;font-size:12px;">${c.peer_id || c.agent_id}</div>
-              <div style="font-size:10px;color:#999;">点击开始聊天</div>
+              <div style="font-weight:bold;font-size:12px;">${c.peer_id.substring(0, 16)}${c.peer_id.length > 16 ? '...' : ''}</div>
+              <div style="font-size:10px;color:#999;">${c.last_message ? c.last_message.substring(0, 30) + (c.last_message.length > 30 ? '...' : '') : '暂无消息'}</div>
             </div>
             <span style="color:#999;">›</span>
           </div>
@@ -397,7 +400,42 @@
       } catch (e) { console.error('Failed to load chat list:', e); }
     }
     
-    function openChat(peerId) { currentChatPeer = peerId; document.getElementById('chat-with').textContent = '🤖 ' + peerId.substring(0, 12); document.getElementById('chat-messages').innerHTML = '<div style="color:#999;text-align:center;">暂无消息</div>'; document.getElementById('chat-modal').style.display = 'flex'; }
+    function openChat(peerId) { 
+      currentChatPeer = peerId; 
+      document.getElementById('chat-with').textContent = '🤖 ' + peerId.substring(0, 16);
+      loadMessages(peerId);
+      document.getElementById('chat-modal').style.display = 'flex'; 
+    }
+    
+    async function loadMessages(peerId) {
+      try {
+        const messages = await window.api.getMessages(peerId);
+        const container = document.getElementById('chat-messages');
+        
+        if (!messages || messages.length === 0) {
+          container.innerHTML = '<div style="color:#999;text-align:center;">暂无消息记录<br>发送第一条消息开始聊天吧!</div>';
+          return;
+        }
+        
+        container.innerHTML = messages.map(m => {
+          const isSent = m.from_agent === 'node_b9fd9c6574264504' || m.from_agent === window.api.nodeId;
+          return `
+            <div style="margin:5px 0;text-align:${isSent ? 'right' : 'left'};">
+              <span style="background:${isSent ? '#667eea' : '#4a5568'};color:white;padding:6px 10px;border-radius:12px;display:inline-block;max-width:80%;word-break:break-word;">
+                ${m.content}
+              </span>
+              <div style="font-size:9px;color:#666;margin-top:2px;">${new Date(m.created_at).toLocaleString()}</div>
+            </div>
+          `;
+        }).join('');
+        
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+      } catch (e) { 
+        console.error('Failed to load messages:', e); 
+        document.getElementById('chat-messages').innerHTML = '<div style="color:#999;text-align:center;">加载消息失败</div>';
+      }
+    }
     
     async function sendChat() {
       const msg = document.getElementById('chat-input').value.trim();
@@ -405,6 +443,7 @@
       try {
         await window.api.sendMessage(currentChatPeer, msg);
         document.getElementById('chat-input').value = '';
+        loadMessages(currentChatPeer);
         document.getElementById('chat-messages').innerHTML += `<div style="margin:5px 0;text-align:right;"><span style="background:#667eea;color:white;padding:4px 8px;border-radius:8px;">${msg}</span></div>`;
         showToast('已发送');
       } catch(e) { showToast('发送失败'); }
