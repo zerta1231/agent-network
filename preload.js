@@ -22,12 +22,31 @@ contextBridge.exposeInMainWorld('api', {
   // Balance
   getBalance: () => fetch('http://localhost:18794/api/balance').then(r => r.json()),
   
-  // Messaging
-  sendMessage: (to, message) => fetch('http://localhost:18794/api/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, message })
-  }).then(r => r.json()),
+  // Messaging - tries local first, then EvoMap
+  sendMessage: async (to, message) => {
+    // Try local first
+    try {
+      const localRes = await fetch('http://localhost:18794/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, message })
+      });
+      const localData = await localRes.json();
+      if (localData.success) return localData;
+    } catch (e) {}
+    
+    // Fallback to EvoMap
+    try {
+      const evomapRes = await fetch('http://localhost:18794/api/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: to, message })
+      });
+      return await evomapRes.json();
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
   
   // Appreciation
   sendAppreciation: (peerId) => fetch('http://localhost:18794/api/appreciate', {

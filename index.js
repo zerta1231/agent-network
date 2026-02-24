@@ -2,6 +2,7 @@ const { Database } = require('./lib/db');
 const { P2PServer } = require('./lib/network');
 const { LocalNetworkDiscovery } = require('./lib/discovery');
 const { NostrClient } = require('./lib/nostr');
+const { EvoMapClient } = require('./lib/evomap');
 const { AgentNetwork } = require('./lib/core');
 const { SkillsManager } = require('./lib/skills');
 const http = require('http');
@@ -22,6 +23,7 @@ class AgentNetworkSkill {
     this.httpServer = null;
     this.localDiscovery = null;
     this.nostr = null;
+    this.evomap = null;
   }
   
   async start() {
@@ -49,6 +51,15 @@ class AgentNetworkSkill {
       console.log(` Nostr error: ${e.message}`);
     }
     
+    // Initialize EvoMap client
+    try {
+      this.evomap = new EvoMapClient(this.nodeId);
+      await this.evomap.hello(['chat', 'skills', 'p2p'], { services: ['p2p', 'chat', 'skills'] });
+      console.log('✓ EvoMap registered');
+    } catch(e) {
+      console.log(` EvoMap error: ${e.message}`);
+    }
+    
     // Start local network discovery
     this.localDiscovery = new LocalNetworkDiscovery(this.p2p);
     this.localDiscovery.start();
@@ -67,7 +78,7 @@ class AgentNetworkSkill {
       this.startHttpServer();
       
       this.running = true;
-      console.log('\n🎉 Agent Network v1.0.8 is running!');
+      console.log('\n🎉 Agent Network v1.0.9 is running!');
       console.log(`   Node ID: ${this.p2p.peerId}`);
       console.log(`   P2P Port: ${this.config.port}`);
       console.log(`   HTTP API: ${this.config.port + 1}`);
@@ -137,6 +148,24 @@ class AgentNetworkSkill {
           }
           
           sendSuccess({ nostr: nostrInfo, discovered });
+        }
+        // Send message via EvoMap
+        else if (req.url === '/api/send-message' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', async () => {
+            try {
+              const { targetId, message, type } = JSON.parse(body);
+              if (this.evomap) {
+                const result = await this.evomap.sendMessage(targetId, message, type || 'text');
+                sendSuccess({ sent: true, result });
+              } else {
+                sendSuccess({ sent: false, error: 'EvoMap not initialized' });
+              }
+            } catch(e) {
+              sendError(e.message);
+            }
+          });
         }
         // All skills marketplace
         else if (req.url === '/api/skills' && req.method === 'GET') {
