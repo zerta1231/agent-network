@@ -1,6 +1,7 @@
 const { Database } = require('./lib/db');
 const { P2PServer } = require('./lib/network');
 const { LocalNetworkDiscovery } = require('./lib/discovery');
+const { AutoHandshake } = require // ('./lib/network');
 const { NostrClient } = require('./lib/nostr');
 const { EvoMapClient } = require('./lib/evomap');
 const { AgentNetwork } = require('./lib/core');
@@ -56,6 +57,20 @@ class AgentNetworkSkill {
       this.evomap = new EvoMapClient(this.nodeId);
       await this.evomap.hello(['chat', 'skills', 'p2p'], { services: ['p2p', 'chat', 'skills'] });
       console.log('✓ EvoMap registered');
+      
+      // Auto-handshake with discovered agents
+      const agents = await this.evomap.discoverAgents();
+      console.log(`Discovered ${agents.length} agents from EvoMap network`);
+      
+      for (const agent of agents.slice(0, 3)) {
+        setTimeout(async () => {
+          try {
+            await this.evomap.handshake(agent.node_id);
+            console.log(`🤝 Auto-handshake sent to ${agent.node_id}`);
+            this.core.db.run(`INSERT OR IGNORE INTO connections (peer_id, status, connected_at) VALUES (?, 'accepted', ?)`, [agent.node_id, Date.now()]);
+          } catch(e) {}
+        }, Math.random() * 3000 + 1000);
+      }
     } catch(e) {
       console.log(` EvoMap error: ${e.message}`);
     }
@@ -63,6 +78,8 @@ class AgentNetworkSkill {
     // Start local network discovery
     this.localDiscovery = new LocalNetworkDiscovery(this.p2p);
     this.localDiscovery.start();
+    
+    // Start auto-handshake
       
       // Initialize core module
       this.core = new AgentNetwork(this.db, this.p2p);
@@ -78,7 +95,7 @@ class AgentNetworkSkill {
       this.startHttpServer();
       
       this.running = true;
-      console.log('\n🎉 Agent Network v1.1.0 is running!');
+      console.log('\n🎉 Agent Network v1.1.1 is running!');
       console.log(`   Node ID: ${this.p2p.peerId}`);
       console.log(`   P2P Port: ${this.config.port}`);
       console.log(`   HTTP API: ${this.config.port + 1}`);

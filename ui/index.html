@@ -52,7 +52,7 @@
 <body>
   <div class="app">
     <div class="header">
-      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.1.0</span></h1>
+      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.1.1</span></h1>
       <div class="status-bar">
         <span id="node-id">Loading...</span>
         <span class="points" id="points">0</span>
@@ -259,9 +259,9 @@
         }
         
         container.innerHTML = allPeers.map(c => {
-          const id = c.peer_id || c.agent_id;
+          const id = c.peer_id || c.agent_id || c.id;
           const isConnected = c.status === 'accepted';
-          const isDiscovered = c.status === 'discovered';
+          const isDiscovered = c.status === 'discovered' || c.type;
           const type = c.type || 'websocket';
           
           return `
@@ -417,8 +417,11 @@
           return;
         }
         
+        const status = await window.api.getStatus();
+        const myNodeId = status.nodeId;
+        
         container.innerHTML = messages.map(m => {
-          const isSent = m.from_agent === 'node_b9fd9c6574264504' || m.from_agent === window.api.nodeId;
+          const isSent = m.from_agent === myNodeId;
           return `
             <div style="margin:5px 0;text-align:${isSent ? 'right' : 'left'};">
               <span style="background:${isSent ? '#667eea' : '#4a5568'};color:white;padding:6px 10px;border-radius:12px;display:inline-block;max-width:80%;word-break:break-word;">
@@ -429,7 +432,6 @@
           `;
         }).join('');
         
-        // Scroll to bottom
         container.scrollTop = container.scrollHeight;
       } catch (e) { 
         console.error('Failed to load messages:', e); 
