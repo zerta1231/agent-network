@@ -1,5 +1,6 @@
 const { Database } = require('./lib/db');
 const { P2PServer } = require('./lib/network');
+const { LocalNetworkDiscovery } = require('./lib/discovery');
 const { AgentNetwork } = require('./lib/core');
 const { SkillsManager } = require('./lib/skills');
 const http = require('http');
@@ -18,6 +19,7 @@ class AgentNetworkSkill {
     this.skills = null;
     this.running = false;
     this.httpServer = null;
+    this.localDiscovery = null;
   }
   
   async start() {
@@ -33,6 +35,10 @@ class AgentNetworkSkill {
       this.p2p = new P2PServer(this.config.port);
       await this.p2p.start();
       console.log(`✓ P2P server started on port ${this.config.port}`);
+    
+    // Start local network discovery
+    this.localDiscovery = new LocalNetworkDiscovery(this.p2p);
+    this.localDiscovery.start();
       
       // Initialize core module
       this.core = new AgentNetwork(this.db, this.p2p);
@@ -82,7 +88,7 @@ class AgentNetworkSkill {
           const connections = await this.core.getConnections();
           sendSuccess({
             nodeId: this.p2p.peerId,
-            version: '1.0.2',
+            version: '1.0.5',
             balance,
             connections: connections.length,
             peers: this.p2p.getPeers().length
@@ -204,7 +210,8 @@ class AgentNetworkSkill {
         // Get all discovered agents
         else if (req.url === '/api/discovered-agents' && req.method === 'GET') {
           const allAgents = this.p2p.getAllAgents();
-          sendSuccess(allAgents);
+          const localPeers = this.localDiscovery ? this.localDiscovery.getPeers() : [];
+          sendSuccess({ websocket: allAgents.websocket, http: allAgents.http, local: localPeers });
         }
         else if (req.url === '/api/check-update' && req.method === 'GET') {
           sendSuccess({ currentVersion: '1.0.5', latestVersion: '1.0.5', updateUrl: 'https://github.com/zerta1231/agent-network' });
