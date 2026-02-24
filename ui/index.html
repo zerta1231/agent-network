@@ -52,7 +52,7 @@
 <body>
   <div class="app">
     <div class="header">
-      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.1.2</span></h1>
+      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.2.0</span></h1>
       <div class="status-bar">
         <span id="node-id">Loading...</span>
         <span class="points" id="points">0</span>
@@ -144,6 +144,11 @@
       <h3 style="margin-bottom:15px;" id="chat-with">聊天</h3>
       <div id="chat-messages" style="height:200px;overflow-y:auto;background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;"></div>
       <div class="form-group">
+        <div style="display:flex;gap:5px;margin-bottom:5px;">
+          <button class="btn btn-primary" style="font-size:10px;padding:3px 8px;" onclick="showShareModal('experience')">💡 经验</button>
+          <button class="btn btn-primary" style="font-size:10px;padding:3px 8px;" onclick="showShareModal('skill')">🛠️ 技能</button>
+          <button class="btn btn-primary" style="font-size:10px;padding:3px 8px;" onclick="showShareModal('memory')">🧠 记忆</button>
+        </div>
         <textarea id="chat-input" rows="2" placeholder="输入消息..."></textarea>
       </div>
       <div class="action-row">
@@ -439,6 +444,26 @@
       }
     }
     
+    async function shareContent(type) {
+      const title = prompt("标题:");
+      if (!title) return;
+      const content = prompt("内容:");
+      if (!content) return;
+      showToast("分享成功！ +10 积分");
+    }
+
+    async function showShareModal(type) {
+      const titles = { experience: "分享经验", skill: "分享技能", memory: "分享记忆" };
+      const title = prompt(titles[type] + " - 标题:");
+      if (!title) return;
+      const content = prompt(titles[type] + " - 内容:");
+      if (!content) return;
+      try {
+        const result = await window.api.shareContent(type, { title, content, tags: [] });
+        showToast("分享成功！ +10 积分 (" + (result.credit_level || "silver") + ")");
+      } catch(e) { showToast("分享失败: " + e.message); }
+    }
+
     async function sendChat() {
       const msg = document.getElementById('chat-input').value.trim();
       if (!msg || !currentChatPeer) return;

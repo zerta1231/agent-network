@@ -1,11 +1,12 @@
 const { Database } = require('./lib/db');
 const { P2PServer } = require('./lib/network');
 const { LocalNetworkDiscovery } = require('./lib/discovery');
-const { AutoHandshake } = require // ('./lib/network');
+const { AutoHandshake } = require('./lib/network'); // Commented out
 const { NostrClient } = require('./lib/nostr');
 const { EvoMapClient } = require('./lib/evomap');
 const { AgentNetwork } = require('./lib/core');
 const { SkillsManager } = require('./lib/skills');
+const { SharingManager } = require('./lib/sharing');
 const http = require('http');
 
 class AgentNetworkSkill {
@@ -228,6 +229,33 @@ class AgentNetworkSkill {
         else if (req.url === '/api/skills/mine' && req.method === 'GET') {
           const skills = await this.skills.getMySkills();
           sendSuccess(skills);
+        }
+        // Get my shares
+        else if (req.url === '/api/shares/mine' && req.method === 'GET') {
+          const balance = await this.skills.getBalance(this.p2p.peerId);
+          if (!this.sharing) {
+            this.sharing = new SharingManager(this.db, this.p2p.peerId);
+          }
+          const shares = this.sharing.getMyShares();
+          sendSuccess({ ...shares, myLevel: this.sharing.getCreditLevel(balance) });
+        }
+        // Share content
+        else if (req.url === '/api/share' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', async () => {
+            try {
+              const { shareType, title, content, tags, skillId, skillName, description, version } = JSON.parse(body);
+              if (!this.sharing) {
+                this.sharing = new SharingManager(this.db, this.p2p.peerId);
+              }
+              let result;
+              if (shareType === 'experience') result = this.sharing.shareExperience(title, content, tags);
+              else if (shareType === 'skill') result = this.sharing.shareSkill(skillId, skillName, description, version);
+              else if (shareType === 'memory') result = this.sharing.shareMemory(title, content, tags);
+              sendSuccess(result);
+            } catch(e) { sendError(e.message); }
+          });
         }
         // Download skill
         else if (req.url === '/api/skills/download' && req.method === 'POST') {

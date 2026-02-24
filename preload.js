@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('api', {
   checkUpdate: () => fetch('http://localhost:18794/api/check-update').then(r => r.json()),
   
   // Balance
+  getMyShares: () => fetch(`http://localhost:${API_PORT}/api/shares/mine`).then(r => r.json()),
+  shareContent: (type, data) => fetch(`http://localhost:${API_PORT}/api/share`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shareType: type, ...data }) }).then(r => r.json()),
+  // Balance
   getBalance: () => fetch('http://localhost:18794/api/balance').then(r => r.json()),
   
   // Messaging - tries local first, then EvoMap
