@@ -52,7 +52,7 @@
 <body>
   <div class="app">
     <div class="header">
-      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.0.7</span></h1>
+      <h1>🤖 Agent Network <span id="version-badge" class="version-badge">v1.0.8</span></h1>
       <div class="status-bar">
         <span id="node-id">Loading...</span>
         <span class="points" id="points">0</span>
@@ -69,6 +69,7 @@
     
     <div class="content">
       <div class="tab-content" id="connections">
+        <div id="nostr-status" style="padding:8px;background:#16213e;border-radius:6px;margin-bottom:8px;font-size:11px;"></div>
         <div class="action-row">
           <button class="btn btn-primary" onclick="scanPeers()">🔍 扫描</button>
           <button class="btn btn-secondary" onclick="refreshConnections()">🔄 刷新</button>
@@ -216,25 +217,73 @@
     
     async function loadConnections() {
       try {
-        const connections = await window.api.getConnections();
+        // Get both established connections and discovered agents
+        const [connections, allAgentsData] = await Promise.all([
+          window.api.getConnections(),
+          window.api.getAllAgents()
+        ]);
+        
+        // Update Nostr status
+        const nostrStatus = document.getElementById('nostr-status');
+        if (allAgentsData?.nostr) {
+          const n = allAgentsData.nostr;
+          nostrStatus.innerHTML = `🌐 Nostr: ${n.connected ? '✅ 已连接' : '❌ 未连接'} | PubKey: ${n.pubkey}...`;
+        } else {
+          nostrStatus.innerHTML = '🌐 Nostr: 🔄 连接中...';
+        }
+        
         const container = document.getElementById('connections-list');
-        if (!connections || connections.length === 0) {
-          container.innerHTML = '<div class="empty">暂无连接<br>点击"扫描"发现附近Agent</div>';
+        const discovered = allAgentsData?.discovered || [];
+        
+        // Combine established connections with discovered agents
+        const allPeers = [...connections || []];
+        
+        // Add discovered agents as pending connections
+        for (const agent of discovered) {
+          if (!allPeers.find(c => (c.peer_id || c.agent_id) === agent.id)) {
+            allPeers.push({
+              peer_id: agent.id,
+              status: 'discovered',
+              type: agent.type,
+              ip: agent.ip,
+              port: agent.port,
+              version: agent.version,
+              services: agent.services
+            });
+          }
+        }
+        
+        if (allPeers.length === 0) {
+          container.innerHTML = '<div class="empty">暂无连接<br>等待发现附近Agent...</div>';
           return;
         }
-        container.innerHTML = connections.map(c => `
-          <div class="chat-item" onclick="openChat('${c.peer_id || c.agent_id}')">
-            <div class="chat-avatar">🤖</div>
+        
+        container.innerHTML = allPeers.map(c => {
+          const id = c.peer_id || c.agent_id;
+          const isConnected = c.status === 'accepted';
+          const isDiscovered = c.status === 'discovered';
+          const type = c.type || 'websocket';
+          
+          return `
+          <div class="chat-item" onclick="openChat('${id}')">
+            <div class="chat-avatar">${isConnected ? '🤖' : '📡'}</div>
             <div style="flex:1;">
-              <div style="font-weight:bold;font-size:12px;">${c.peer_id || c.agent_id}</div>
-              <div style="font-size:10px;color:#999;">已连接</div>
+              <div style="font-weight:bold;font-size:12px;">${id.substring(0, 20)}${id.length > 20 ? '...' : ''}</div>
+              <div style="font-size:10px;color:#999;">
+                ${isConnected ? '✅ 已连接' : isDiscovered ? `🔍 ${type}发现` : '⏳ 待通过'}
+                ${c.version ? ' v' + c.version : ''}
+              </div>
             </div>
           </div>
-        `).join('');
+        `}).join('');
       } catch (e) { console.error('Failed to load connections:', e); }
     }
     
-    async function scanPeers() { showToast('正在扫描附近Agent...'); await loadConnections(); showToast('扫描完成!'); }
+    async function scanPeers() { 
+      showToast('正在扫描所有网络...'); 
+      await loadConnections(); 
+      showToast('扫描完成!'); 
+    }
     async function refreshConnections() { await loadConnections(); showToast('已刷新'); }
     
     async function loadSkills() {

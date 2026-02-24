@@ -67,7 +67,7 @@ class AgentNetworkSkill {
       this.startHttpServer();
       
       this.running = true;
-      console.log('\n🎉 Agent Network v1.0.7 is running!');
+      console.log('\n🎉 Agent Network v1.0.8 is running!');
       console.log(`   Node ID: ${this.p2p.peerId}`);
       console.log(`   P2P Port: ${this.config.port}`);
       console.log(`   HTTP API: ${this.config.port + 1}`);
@@ -111,6 +111,32 @@ class AgentNetworkSkill {
         else if (req.url === '/api/connections' && req.method === 'GET') {
           const connections = await this.core.getConnections();
           sendSuccess(connections);
+        }
+        // All discovered agents from all protocols
+        else if (req.url === '/api/all-agents' && req.method === 'GET') {
+          const wsPeers = this.p2p.getPeers ? this.p2p.getPeers() : [];
+          const allAgents = this.p2p.getAllAgents ? this.p2p.getAllAgents() : { websocket: [], http: [], local: [] };
+          const nostrInfo = this.nostr ? { pubkey: (this.nostr.getPublicKey ? this.nostr.getPublicKey() : this.nostr.publicKey || '').substring(0, 16), connected: this.nostr.connected || false } : null;
+          const localPeers = this.localDiscovery ? this.localDiscovery.getPeers() : [];
+          
+          const discovered = [];
+          
+          // Add local UDP peers
+          for (const peer of localPeers) {
+            discovered.push({ id: peer.nodeId, type: 'local', ip: peer.ip, port: peer.port, version: peer.version, services: peer.services });
+          }
+          
+          // Add WebSocket peers
+          for (const peerId of allAgents.websocket) {
+            discovered.push({ id: peerId, type: 'websocket' });
+          }
+          
+          // Add HTTP/EvoMap peers
+          for (const peerId of allAgents.http) {
+            discovered.push({ id: peerId, type: 'evomap' });
+          }
+          
+          sendSuccess({ nostr: nostrInfo, discovered });
         }
         // All skills marketplace
         else if (req.url === '/api/skills' && req.method === 'GET') {
