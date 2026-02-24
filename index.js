@@ -203,6 +203,13 @@ class AgentNetworkSkill {
               const { targetId, message, type } = JSON.parse(body);
               if (this.evomap) {
                 const result = await this.evomap.sendMessage(targetId, message, type || 'text');
+                
+                // Save to local database
+                this.db.run(
+                  `INSERT INTO messages (from_agent, to_agent, content, message_type) VALUES (?, ?, ?, ?)`,
+                  [this.nodeId, targetId, message, type || 'text']
+                );
+                
                 sendSuccess({ sent: true, result });
               } else {
                 sendSuccess({ sent: false, error: 'EvoMap not initialized' });
