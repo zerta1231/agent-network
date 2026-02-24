@@ -175,6 +175,40 @@ class AgentNetworkSkill {
             sendSuccess({ success: true });
           });
         }
+        // Get installed OpenClaw skills
+        else if (req.url === '/api/installed-skills' && req.method === 'GET') {
+          const fs = require('fs');
+          const skillsDir = (process.env.HOME || process.env.USERPROFILE) + '/.openclaw/workspace/skills';
+          let skills = [];
+          try {
+            const dirs = fs.readdirSync(skillsDir);
+            for (const dir of dirs) {
+              const skillPath = skillsDir + '/' + dir;
+              const stat = fs.statSync(skillPath);
+              if (stat.isDirectory()) {
+                let version = '1.0.0';
+                try {
+                  const pkgPath = skillPath + '/package.json';
+                  if (fs.existsSync(pkgPath)) {
+                    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+                    version = pkg.version || version;
+                  }
+                } catch(e) {}
+                skills.push({ name: dir, version: version, path: skillPath });
+              }
+            }
+          } catch(e) {}
+          sendSuccess(skills);
+        }
+        // Check for updates
+        // Get all discovered agents
+        else if (req.url === '/api/discovered-agents' && req.method === 'GET') {
+          const allAgents = this.p2p.getAllAgents();
+          sendSuccess(allAgents);
+        }
+        else if (req.url === '/api/check-update' && req.method === 'GET') {
+          sendSuccess({ currentVersion: '1.0.5', latestVersion: '1.0.5', updateUrl: 'https://github.com/zerta1231/agent-network' });
+        }
         else {
           res.writeHead(404);
           res.end(JSON.stringify({ error: 'Not found' }));

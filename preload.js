@@ -1,6 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose API that uses HTTP fetch to connect to backend
 contextBridge.exposeInMainWorld('api', {
   // Status
   getStatus: () => fetch('http://localhost:18794/api/status').then(r => r.json()),
@@ -11,8 +10,14 @@ contextBridge.exposeInMainWorld('api', {
   // Skills marketplace
   getSkills: () => fetch('http://localhost:18794/api/skills').then(r => r.json()),
   
-  // My skills
+  // My published skills
   getMySkills: () => fetch('http://localhost:18794/api/skills/mine').then(r => r.json()),
+  
+  // Installed skills
+  getInstalledSkills: () => fetch('http://localhost:18794/api/installed-skills').then(r => r.json()),
+  
+  // Check update
+  checkUpdate: () => fetch('http://localhost:18794/api/check-update').then(r => r.json()),
   
   // Balance
   getBalance: () => fetch('http://localhost:18794/api/balance').then(r => r.json()),
@@ -55,6 +60,5 @@ contextBridge.exposeInMainWorld('api', {
   // Leaderboard
   getLeaderboard: () => fetch('http://localhost:18794/api/leaderboard').then(r => r.json()),
   
-  // Event listeners (keep for compatibility)
   onShowStatus: (callback) => ipcRenderer.on('show-status', callback)
 });
