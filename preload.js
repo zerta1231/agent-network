@@ -2,14 +2,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose API that uses HTTP fetch to connect to backend
 contextBridge.exposeInMainWorld('api', {
-  // Status - use fetch to connect to backend
+  // Status
   getStatus: () => fetch('http://localhost:18794/api/status').then(r => r.json()),
   
   // Connections
   getConnections: () => fetch('http://localhost:18794/api/connections').then(r => r.json()),
   
-  // Skills
+  // Skills marketplace
   getSkills: () => fetch('http://localhost:18794/api/skills').then(r => r.json()),
+  
+  // My skills
+  getMySkills: () => fetch('http://localhost:18794/api/skills/mine').then(r => r.json()),
   
   // Balance
   getBalance: () => fetch('http://localhost:18794/api/balance').then(r => r.json()),
@@ -28,14 +31,22 @@ contextBridge.exposeInMainWorld('api', {
     body: JSON.stringify({ peerId })
   }).then(r => r.json()),
   
-  // Skills management
+  // Publish skill
   publishSkill: (skillPath, price, metadata) => fetch('http://localhost:18794/api/publish', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skillPath, price, metadata })
   }).then(r => r.json()),
   
-  rateSkill: (skillId, rating, review) => fetch('http://localhost:18794/api/rate', {
+  // Download skill
+  downloadSkill: (skillId) => fetch('http://localhost:18794/api/skills/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skillId })
+  }).then(r => r.json()),
+  
+  // Rate skill
+  rateSkill: (skillId, rating, review) => fetch('http://localhost:18794/api/skills/rate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ skillId, rating, review })
