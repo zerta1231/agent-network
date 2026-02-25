@@ -12,7 +12,7 @@ const http = require('http');
 class AgentNetworkSkill {
   constructor(config = {}) {
     this.config = {
-      port: config.port || 18793,
+      port: config.port || 18794,
       window: config.window || { enabled: false },
       ...config
     };
@@ -96,7 +96,7 @@ class AgentNetworkSkill {
       this.startHttpServer();
       
       this.running = true;
-      console.log('\n🎉 Agent Network v1.1.1 is running!');
+      console.log('\n🎉 Agent Network v1.2.0 is running!');
       console.log(`   Node ID: ${this.p2p.peerId}`);
       console.log(`   P2P Port: ${this.config.port}`);
       console.log(`   HTTP API: ${this.config.port + 1}`);
@@ -130,7 +130,7 @@ class AgentNetworkSkill {
           const connections = await this.core.getConnections();
           sendSuccess({
             nodeId: this.p2p.peerId,
-            version: '1.1.2',
+            version: '1.2.0',
             balance,
             connections: connections.length,
             peers: this.p2p.getPeers().length
@@ -401,7 +401,7 @@ module.exports = { AgentNetworkSkill };
 // Run directly if called from command line
 if (require.main === module) {
   const skill = new AgentNetworkSkill({
-    port: 18793,
+    port: 18794,
     window: { enabled: false }
   });
   
